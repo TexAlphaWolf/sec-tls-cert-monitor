@@ -1,0 +1,42 @@
+# Load with `rule_files:` in prometheus.yml. Scrape config:
+#   - job_name: tlswatch
+#     scrape_interval: 1m
+#     static_configs: [{targets: ["tlswatch:9117"]}]
+groups:
+  - name: tlswatch
+    rules:
+      - alert: TlsCertificateExpiresSoon
+        expr: tlswatch_cert_days_remaining < 21
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Certificate for {{ $labels.host }}:{{ $labels.port }} expires in {{ $value | humanize }} days"
+      - alert: TlsCertificateExpiresVerySoon
+        expr: tlswatch_cert_days_remaining < 7
+        for: 10m
+        labels: {severity: critical}
+        annotations:
+          summary: "Certificate for {{ $labels.host }}:{{ $labels.port }} expires in {{ $value | humanize }} days"
+      - alert: TlsCertificateNotTrusted
+        expr: tlswatch_up == 1 and tlswatch_cert_verified == 0
+        for: 10m
+        labels: {severity: critical}
+        annotations:
+          summary: "A normal client would not trust {{ $labels.host }}:{{ $labels.port }}"
+      - alert: TlsHostUnreachable
+        expr: tlswatch_up == 0
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "tlswatch cannot complete a TLS handshake with {{ $labels.host }}:{{ $labels.port }}"
+      - alert: TlsGradeBelowB
+        expr: tlswatch_grade_score < 3
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.host }}:{{ $labels.port }} has a TLS grade below B"
+      - alert: TlsScanStale
+        expr: time() - tlswatch_last_scan_timestamp_seconds > 1800
+        labels: {severity: warning}
+        annotations:
+          summary: "tlswatch has not probed {{ $labels.host }}:{{ $labels.port }} for 30 minutes"

@@ -1,0 +1,23 @@
+# tlswatch check -c examples/tlswatch.toml
+# tlswatch serve -c examples/tlswatch.toml --listen 0.0.0.0:9117
+
+[settings]
+timeout = 5          # seconds per connection
+warn_days = 30       # a certificate that expires within 30 days is a "medium" finding (grade C)
+critical_days = 7    # within 7 days it is "high" (grade D)
+workers = 8          # hosts probed at the same time
+min_grade = "B"      # `check` exits 1 if any host is worse than this
+
+[[hosts]]
+host = "example.org"
+
+[[hosts]]
+host = "mail.example.org"
+port = 587
+starttls = "smtp"          # smtp | imap | pop3
+
+[[hosts]]
+host = "10.0.0.20"          # reached by address, checked for a name
+port = 8443
+server_name = "grafana.internal.example"
+ca_file = "internal-ca.pem"  # relative to this file; added to the system trust store

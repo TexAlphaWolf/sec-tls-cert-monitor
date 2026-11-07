@@ -1,0 +1,22 @@
+name: Live
+
+# Runs tlswatch against the public test hosts of badssl.com. Kept out of the normal CI because it
+# depends on a third party being up.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 3"
+
+permissions:
+  contents: read
+
+jobs:
+  badssl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install .
+      - run: python tools/live_check.py
