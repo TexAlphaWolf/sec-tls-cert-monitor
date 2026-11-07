@@ -332,7 +332,7 @@ def diagnoses(directory: Path) -> int:
         (
             "server speaks plain text, not TLS",
             Target("127.0.0.1", plain.getsockname()[1]),
-            "TLS error",
+            "TLS error|connection closed by the server",
             3,
         ),
     ]
@@ -340,7 +340,9 @@ def diagnoses(directory: Path) -> int:
         for name, target, expected, timeout in faults:
             target = target or Target("127.0.0.1", silent.port)
             report = scan_one(target, timeout=timeout)
-            ok = report.grade is None and expected in (report.error or "")
+            ok = report.grade is None and any(
+                part in (report.error or "") for part in expected.split("|")
+            )
             correct += ok
             rows.append((name, "-", "-", (report.error or "no error")[:40], ok))
     plain.close()

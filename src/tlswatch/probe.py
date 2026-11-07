@@ -148,6 +148,10 @@ def describe_error(exc: BaseException) -> str:
         return "timed out"
     if isinstance(exc, ConnectionRefusedError):
         return "connection refused"
+    if isinstance(exc, ConnectionError):
+        # Reset, aborted or broken pipe. Windows reports a server that answers a TLS hello with
+        # plain text and hangs up this way, where Linux reports a TLS error.
+        return "connection closed by the server during the handshake"
     if isinstance(exc, ssl.SSLError):
         return f"TLS error: {getattr(exc, 'reason', None) or exc}"
     if isinstance(exc, ProbeError):

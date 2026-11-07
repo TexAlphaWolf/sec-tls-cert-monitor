@@ -237,7 +237,8 @@ def test_a_server_that_does_not_speak_tls():
     finally:
         listener.close()
         thread.join(timeout=3)
-    assert report.error.startswith("TLS error")
+    # Linux reports a TLS error; Windows reports that the server aborted the connection.
+    assert report.error.startswith(("TLS error", "connection closed by the server"))
     assert report.grade is None
 
 
@@ -294,6 +295,9 @@ def test_describe_error_wording():
     assert probe.describe_error(TimeoutError()) == "timed out"
     assert probe.describe_error(socket.gaierror(-2, "Name or service not known")).startswith(
         "name does not resolve"
+    )
+    assert probe.describe_error(ConnectionAbortedError()).startswith(
+        "connection closed by the server"
     )
     assert probe.describe_error(ValueError("x")) == "ValueError: x"
 
