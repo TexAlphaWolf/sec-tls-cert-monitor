@@ -131,6 +131,39 @@ def test_a_weak_key_is_still_inspected_and_graded(start, ca, ca_file):
     assert "verification-failed" in ids(report)
 
 
+@needs("null-encryption")
+def test_a_server_that_offers_only_null_encryption_is_examined_and_flagged(start, leaf, ca_file):
+    server = start(leaf, maximum=V.TLSv1_2, ciphers="ECDHE-RSA-NULL-SHA" + LEGACY)
+    report = scan(target_for(server, ca_file))
+    assert report.error is None
+    assert report.ciphers["null-encryption"].status == "supported"
+    assert ids(report)["cipher-null-encryption"] == "critical" and report.grade == "F"
+
+
+def test_a_total_handshake_failure_says_what_this_machine_cannot_do(monkeypatch):
+    """rc4.badssl.com and 3des.badssl.com refuse every other suite; a client without RC4 or 3DES
+    sees only a handshake failure, and the report must not leave it at that."""
+
+    def refuse(*args, **kwargs):
+        raise _ssl_error("SSLV3_ALERT_HANDSHAKE_FAILURE")
+
+    monkeypatch.setattr(probe, "_connect", refuse)
+    monkeypatch.setattr(probe, "local_capabilities", lambda: {"rc4": False, "3des": False})
+    report = scan(Target("127.0.0.1", 9))
+    assert report.grade is None
+    assert "no RC4 and no 3DES" in report.error and "SSLV3_ALERT_HANDSHAKE_FAILURE" in report.error
+
+    monkeypatch.setattr(probe, "local_capabilities", lambda: {"rc4": True, "3des": True})
+    assert "no RC4" not in scan(Target("127.0.0.1", 9)).error
+
+    def not_tls(*args, **kwargs):
+        raise _ssl_error("WRONG_VERSION_NUMBER")
+
+    monkeypatch.setattr(probe, "_connect", not_tls)
+    monkeypatch.setattr(probe, "local_capabilities", lambda: {"rc4": False, "3des": False})
+    assert "no RC4" not in scan(Target("127.0.0.1", 9)).error  # not a cipher problem
+
+
 @needs("TLSv1.0")
 def test_a_server_stuck_on_tls10_is_reported_not_unreachable(start, leaf, ca_file):
     server = start(leaf, minimum=V.TLSv1, maximum=V.TLSv1, ciphers="ALL" + LEGACY)

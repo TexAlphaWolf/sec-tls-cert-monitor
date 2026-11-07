@@ -18,6 +18,9 @@ from tlswatch.model import HostReport, Outcome, Target, Verification
 
 # Offering old protocols or weak ciphers needs OpenSSL's lowest security level.
 LEGACY = ":@SECLEVEL=0"
+# "ALL" leaves out the NULL-encryption suites; a monitor has to be able to talk to a server that
+# offers nothing else, in order to report it.
+EVERYTHING = "ALL:eNULL" + LEGACY
 
 PROTOCOLS = ("TLSv1.0", "TLSv1.1", "TLSv1.2", "TLSv1.3")
 
@@ -90,7 +93,7 @@ def _unverified_context(*, legacy: bool = False) -> ssl.SSLContext:
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE
     if legacy:
-        context.set_ciphers("ALL" + LEGACY)
+        context.set_ciphers(EVERYTHING)
         _limit(context, "TLSv1.0", "TLSv1.3")
     else:
         context.set_ciphers("DEFAULT" + LEGACY)
@@ -196,7 +199,7 @@ def probe_protocol(target: Target, protocol: str, timeout: float) -> Outcome:
     """Offer the server exactly one TLS version."""
     context = _unverified_context()
     try:
-        context.set_ciphers("ALL" + LEGACY)
+        context.set_ciphers(EVERYTHING)
         _limit(context, protocol, protocol)
     except (ssl.SSLError, ValueError) as exc:
         return Outcome("untestable", f"this client cannot offer it ({exc})")
@@ -228,7 +231,7 @@ def local_capabilities() -> dict[str, bool]:
     for protocol in PROTOCOLS:
         context = _unverified_context()
         try:
-            context.set_ciphers("ALL" + LEGACY)
+            context.set_ciphers(EVERYTHING)
             _limit(context, protocol, protocol)
             result[protocol] = True
         except (ssl.SSLError, ValueError):
@@ -263,7 +266,25 @@ def _first_session(target: Target, timeout: float) -> tuple[Session | None, str]
     try:
         return _connect(target, _unverified_context(legacy=True), timeout), ""
     except (OSError, ssl.SSLError, ProbeError):
-        return None, failure
+        return None, failure + (_missing_cipher_hint() if _is_cipher_refusal(failure) else "")
+
+
+def _is_cipher_refusal(failure: str) -> bool:
+    return any(
+        word in failure
+        for word in ("HANDSHAKE_FAILURE", "NO_SHARED_CIPHER", "INSUFFICIENT_SECURITY")
+    )
+
+
+def _missing_cipher_hint() -> str:
+    """A handshake that fails everywhere may be a server that only offers what this OpenSSL lacks."""
+    missing = [name for name in ("rc4", "3des") if not local_capabilities().get(name, True)]
+    if not missing:
+        return ""
+    return (
+        f" (this machine's OpenSSL has no {' and no '.join(m.upper() for m in missing)}, so a "
+        "server that offers only those cannot be examined from here)"
+    )
 
 
 def collect(

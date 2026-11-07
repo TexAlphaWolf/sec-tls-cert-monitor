@@ -8,6 +8,7 @@ The protocol and cipher probes work by making the local OpenSSL offer one thing 
 
 - On the machines this was developed and tested on (OpenSSL 3.0.13 and 3.5.7, Debian-based) **RC4 and 3DES cannot be offered**. A server that accepts only those is not examined for them, and `cipher-rc4` / `cipher-3des` can never appear there. `tlswatch capabilities` lists what yours can do.
 - The `Dockerfile` uses Debian's OpenSSL, so it has the same gaps. Run `tlswatch` where an OpenSSL built with `enable-weak-ssl-ciphers` is available if you need those two probes.
+- **A server that offers only RC4 or only 3DES cannot be examined from such a machine at all**: no handshake is possible, so it is reported as unreachable, with a note that this OpenSSL lacks those suites (seen with `rc4.badssl.com` and `3des.badssl.com`). A server that offers only NULL-encryption suites can be examined and is graded F.
 - Export-grade suites, weak Diffie-Hellman parameters and old SSL versions (SSLv2/v3) are not probed at all.
 
 ## What is not checked
