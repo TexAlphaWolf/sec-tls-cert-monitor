@@ -37,6 +37,27 @@ Eighteen servers, each wrong in one known way, plus four faults that are not TLS
 
 Loopback only, so network latency is excluded. One host with all probes takes 9 connections here (11 where RC4 and 3DES can be offered): 36 ms (Python 3.12, OpenSSL 3.0) to 19 ms (Python 3.14, OpenSSL 3.5). 24 hosts, 8 at a time: 0.82 s and 0.36 s. Over the internet every connection pays round trips, so plan on seconds per host and keep `--interval` generous.
 
+## 5. Real servers (badssl.com)
+
+[`tools/live_check.py`](../tools/live_check.py) runs tlswatch against 17 public test hosts and asserts only what each is built to show. First run, on GitHub's Ubuntu runner (Python 3.13) and on a Windows PC (Python 3.14, OpenSSL 3.5.9): **12 of 12 assertions hold on both, 0 failed**. What the table shows:
+
+| Host | Grade | Why |
+|---|---|---|
+| badssl.com, ecc384, revoked | C | TLS 1.0/1.1 still accepted (badssl.com also offers RSA key exchange) |
+| expired, 1000-sans, no-common-name, no-subject, rsa8192 | F | their certificates have expired (the parser still read every field the check looks at: 1,000 names, no common name, empty subject, 8192-bit key) |
+| wrong.host / self-signed / untrusted-root / incomplete-chain | F | `hostname-mismatch` / `self-signed` / `untrusted-issuer` / `untrusted-issuer` |
+| tls-v1-0, tls-v1-1 | F | only TLS 1.0 / 1.1: `protocol-no-modern` |
+| null | F | NULL-encryption and anonymous suites accepted |
+| rc4, 3des | none | cannot be examined: the OpenSSL used has neither suite |
+
+Things to know about it:
+
+- I guessed wrongly beforehand that the F grades of `1000-sans` and its neighbours came from an untrusted CA; the findings show the certificates are expired. I only saw why after making the tool print the reasons for every host.
+- `revoked.badssl.com` is graded C for its protocols, **not** for being revoked: tlswatch does no revocation checks.
+- The two runs differ on `1000-sans`: Linux adds `untrusted-issuer`, Windows does not, most likely because the two trust stores differ (not checked).
+- It also turned up one unexplained result: `example.org` was graded F on Windows for an untrusted chain on the first run and verified minutes later without any change. The cause is not proven; see [limitations](limitations.md).
+- These hosts are a third party's and can change; this table is a snapshot of 7 November 2026, not a guarantee.
+
 ## Things the tests found while writing it
 
 They are listed because they are what a reviewer should know the suite is for:

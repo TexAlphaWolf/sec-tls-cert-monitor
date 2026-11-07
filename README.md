@@ -48,7 +48,7 @@ docker run -d --read-only --cap-drop ALL -p 9117:9117 -v "$PWD/examples:/config:
 
 The grade is the worst grade any finding allows; the rubric is a table in [docs/grading.md](docs/grading.md). It is not the SSL Labs algorithm.
 
-**Be aware of one limit before relying on a clean report:** the cipher probes can only offer what the OpenSSL running `tlswatch` contains. Debian's OpenSSL, which most Python builds and the Docker image use, has no RC4 and no 3DES, so those two are reported as **"not tested from this machine"**, never as "not accepted". `tlswatch capabilities` shows what your machine can test. See [docs/limitations.md](docs/limitations.md).
+**Be aware of one limit before relying on a clean report:** the cipher probes can only offer what the OpenSSL running `tlswatch` contains. Debian's OpenSSL, which most Python builds and the Docker image use, has no RC4 and no 3DES, so those two are reported as **"not tested from this machine"**, never as "not accepted". `tlswatch capabilities` shows what your machine can test. See [docs/limitations.md](docs/limitations.md). A second: trust comes from the machine's own store, so on Windows an `untrusted-issuer` for a site a browser accepts may be a local trust gap; re-run with `--ca-file` to tell them apart.
 
 ## Measured
 
@@ -59,9 +59,9 @@ All of it is reproduced by [`tools/evaluate.py`](tools/evaluate.py) and CI fails
 | Parser against the `cryptography` package, 300 random certificates (6 key types, unicode names, IP and wildcard names, dates from 1990 to 2080, serials up to 158 bits) | **0 of 2,700 fields differ** |
 | 20,000 corrupt certificates (flipped, truncated, inserted, deleted bytes) | **0 unexpected exceptions**; 17,646 refused cleanly, 2,354 still parsed; slowest parse under 2 ms |
 | 22 local servers with one known fault each (expired, wrong name, self-signed, unknown CA, missing / expired intermediate, TLS 1.0, anonymous suites, weak key, refused connection, silent server, plain text, ...) | **22 of 22 diagnosed as expected**, grade and finding |
-| Time per host, loopback, all probes (9 connections) | about 20-40 ms; 24 hosts, 8 at a time, 0.4-0.8 s. On the internet each connection costs round trips, so expect seconds per host |
+| Time per host, loopback, all probes (9 connections) | about 20-125 ms depending on machine and OS; 24 hosts, 8 at a time, 0.3-0.8 s. On the internet each connection costs round trips, so expect seconds per host |
 
-The scenarios were written by the author from the same rubric, so they show that the code follows the rubric, not that the rubric is right. Behaviour against real servers is checked by the [Live workflow](.github/workflows/live.yml) against badssl.com (not part of the numbers above).
+The scenarios were written by the author from the same rubric, so they show that the code follows the rubric, not that the rubric is right. Real servers are checked by the [Live workflow](.github/workflows/live.yml) against badssl.com: 12 of 12 assertions held on Linux and on a Windows PC, and the run exposed two limits that are now documented ([evaluation, section 5](docs/evaluation.md)).
 
 ## Prometheus
 

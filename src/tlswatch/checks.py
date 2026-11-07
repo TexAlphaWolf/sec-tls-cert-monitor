@@ -6,6 +6,7 @@ algorithm: it answers "what should I fix first on my own hosts", with reasons.
 
 from __future__ import annotations
 
+import sys
 from datetime import UTC, datetime
 
 from tlswatch.model import GRADES, SEVERITY_GRADE, Finding, HostReport
@@ -22,6 +23,17 @@ CIPHER_FINDINGS = {
     "3des": ("high", "3DES cipher suites are accepted (Sweet32)"),
     "rsa-key-exchange": ("low", "Cipher suites without forward secrecy are accepted"),
 }
+
+
+def _platform_hint() -> str:
+    """On Windows the trusted roots come from the Windows certificate store."""
+    if sys.platform != "win32":
+        return ""
+    return (
+        "on Windows the trusted roots are those in the Windows certificate store, which can "
+        "lack a root that a browser would trust; if you believe this site is fine, run again "
+        "with --ca-file pointing at a CA bundle such as Mozilla's"
+    )
 
 
 def _plural(count: int, word: str) -> str:
@@ -133,7 +145,7 @@ def _verification_findings(report: HostReport, now: datetime) -> list[Finding]:
         )
         return [Finding("untrusted-issuer", "critical",
                         "Certificate chain is not trusted (unknown issuer or missing intermediate)",
-                        "; ".join(part for part in (message, hint) if part))]  # fmt: skip
+                        "; ".join(part for part in (message, hint, _platform_hint()) if part))]  # fmt: skip
     return [Finding("verification-failed", "critical", "Certificate verification failed", message)]
 
 

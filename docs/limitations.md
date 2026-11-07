@@ -11,6 +11,12 @@ The protocol and cipher probes work by making the local OpenSSL offer one thing 
 - **A server that offers only RC4 or only 3DES cannot be examined from such a machine at all**: no handshake is possible, so it is reported as unreachable, with a note that this OpenSSL lacks those suites (seen with `rc4.badssl.com` and `3des.badssl.com`). A server that offers only NULL-encryption suites can be examined and is graded F.
 - Export-grade suites, weak Diffie-Hellman parameters and old SSL versions (SSLv2/v3) are not probed at all.
 
+## Which roots are trusted
+
+Trust is whatever the Python running tlswatch trusts. On Linux that is the system bundle (`ca-certificates`); on Windows it is the Windows certificate store, so two machines can disagree about the same site.
+
+One observed case, with the cause **not proven**: on a Windows PC (Python 3.14, OpenSSL 3.5.9) the first run of `tlswatch check example.org` graded it F with `untrusted-issuer` ("unable to get local issuer certificate"). Minutes later, with no change to tlswatch, a plain `ssl.create_default_context()` handshake and tlswatch both verified it (grade C, for TLS 1.0/1.1 only). It is consistent with Windows adding a root to its store on demand, but I could not check what the store held at the time. Treat an `untrusted-issuer` on Windows for a site a browser accepts as suspect, and run again with `--ca-file` and a CA bundle (for example Mozilla's `cacert.pem`, or the one in the `certifi` package) to separate a real problem from a local trust gap.
+
 ## What is not checked
 
 - **Revocation** (CRL, OCSP, OCSP stapling) and **Certificate Transparency** are not checked. `revoked.badssl.com` is reported as healthy by design.

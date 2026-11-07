@@ -196,6 +196,20 @@ def test_untrusted_chain_says_how_many_certificates_were_sent():
     assert "the server sent" not in next(f for f in r.findings if f.id == "untrusted-issuer").detail
 
 
+def test_an_untrusted_chain_on_windows_mentions_the_windows_trust_store(monkeypatch):
+    verification = Verification(False, "untrusted", "unable to get local issuer certificate")
+    monkeypatch.setattr(checks.sys, "platform", "win32")
+    detail = next(
+        f for f in assess(report(verification=verification)).findings if f.id == "untrusted-issuer"
+    ).detail
+    assert "Windows certificate store" in detail and "--ca-file" in detail
+    monkeypatch.setattr(checks.sys, "platform", "linux")
+    detail = next(
+        f for f in assess(report(verification=verification)).findings if f.id == "untrusted-issuer"
+    ).detail
+    assert "Windows" not in detail
+
+
 def test_deprecated_protocols_cap_the_grade_at_c():
     protocols = good_protocols() | {
         "TLSv1.0": Outcome("supported", "x"),
