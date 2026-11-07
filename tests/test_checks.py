@@ -178,8 +178,8 @@ def test_hostname_mismatch_lists_the_names_the_certificate_does_have():
         )
     )
     finding = next(f for f in r.findings if f.id == "hostname-mismatch")
-    assert "other.example" in finding.title
-    assert "example.org" in finding.detail and "www.example.org" in finding.detail
+    assert finding.title == "Certificate is not valid for other.example"
+    assert finding.detail == "certificate names: example.org, www.example.org"
 
 
 def test_untrusted_chain_says_how_many_certificates_were_sent():
