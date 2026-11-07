@@ -117,10 +117,9 @@ def main() -> int:
         )
         failures += bool(problems) and not case.informational
         print(f"{case.target:<34} {report.grade or '-':>5}  {status}  ({case.what})")
-        if case.informational:
-            print(
-                f"{'':<42}{', '.join(sorted(found)) or 'no findings'}{'; ' + report.error if report.error else ''}"
-            )
+        # Always show why a host got its grade, so a surprising one can be read, not guessed at.
+        reasons = ", ".join(f.id for f in report.findings if f.severity != "info") or "no findings"
+        print(f"{'':<42}{reasons}{'; ' + report.error if report.error else ''}")
     print(f"\nchecks failed: {failures}")
     return 1 if failures else 0
 
